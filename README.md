@@ -31,13 +31,13 @@ Default is `"OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu"`.
 ### -Log
 Optional switch.  
 Whether or not to log output to a log file.  
-Log filename will be `Get-DiskSpace_yyyy-MM-dd_HH-mm-ss.log`.  
+Log filename will be `Get-MachineInfo_yyyy-MM-dd_HH-mm-ss.log`.  
 Log will be created in the directory specified by the `-LogDir` parameter.  
 
 ### -Csv
 Optional switch.  
 Whether or not to log retrieved data to a CSV file.  
-CSV filename will be `Get-DiskSpace_yyyy-MM-dd_HH-mm-ss.csv`.  
+CSV filename will be `Get-MachineInfo_yyyy-MM-dd_HH-mm-ss.csv`.  
 CSV will be created in the directory specified by the `-LogDir` parameter.  
 
 ### -LogDir [string]

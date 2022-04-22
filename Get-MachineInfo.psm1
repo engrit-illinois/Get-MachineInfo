@@ -19,7 +19,7 @@ function Get-MachineInfo {
 	)
 	
 	$ts = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-	$LOGPATH = "$LogDir\Get-Model_$ts.log"
+	$LOGPATH = "$LogDir\Get-MachineInfo_$ts.log"
 	$CSVPATH = $LOGPATH.Replace(".log",".csv")
 	
 	function log {
