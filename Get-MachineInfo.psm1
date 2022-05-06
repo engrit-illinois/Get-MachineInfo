@@ -7,7 +7,7 @@ function Get-MachineInfo {
 		
 		[string]$OUDN = "OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu",
 		
-		[string]$CIMTimeoutSec = 30,
+		[int]$CIMTimeoutSec = 10,
 		
 		[switch]$Log,
 		
@@ -25,7 +25,8 @@ function Get-MachineInfo {
 	function log {
 		param(
 			[string]$Msg,
-			[switch]$NoTS
+			[switch]$NoTS,
+			[switch]$NoLog
 		)
 		
 		$ts = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
@@ -35,7 +36,7 @@ function Get-MachineInfo {
 		
 		Write-Host $Msg
 		
-		if($Log) {
+		if($Log -and (-not $NoLog)) {
 			if(!(Test-Path -PathType Leaf -Path $LOGPATH)) {
 				$shutup = New-Item -ItemType File -Force -Path $LOGPATH
 			}
@@ -44,83 +45,84 @@ function Get-MachineInfo {
 	}
 
 	function Get-Comps {
+		log "Getting computer names from AD..."
 		$comps = @()
-		foreach($query in @($ComputerName)) {
-			$thisQueryComps = (Get-ADComputer -Filter "name -like '$query'" -SearchBase $OUDN | Select Name).Name
-			$comps += @($thisQueryComps)
+		$ComputerName | ForEach-Object {
+			$query = $_
+			$results = Get-ADComputer -Filter "name -like '$query'" -SearchBase $OUDN | Select -ExpandProperty name
+			$comps += @($results)
 		}
+		$joinString = "`",`""
+		log "    Computers: `"$($comps -join $joinString)`"."
 		$comps
 	}
 	
 	function Get-Data($comps) {
 		log "Retrieving data..."
-		log "    Name,Error,Make,Model,Memory,Serial,BiosVersion"
-		
-		$data = @()
+		log "    Name,Error,Make,Model,Memory,Serial,BiosVersion" -NoLog
 		
 		$data = $comps | ForEach-Object -ThrottleLimit $ThrottleLimit -Parallel {
-			
 			function log($msg) {
 				Write-Host $msg
 			}
 			
-			$CIMTimeoutSec = $using:CimTimeoutSec
 			$comp = $_
+			$object = [PSCustomObject]@{
+				"Name" = $comp
+			}
 			
-			$this = $null
+			$CIMTimeoutSec = $using:CimTimeoutSec
+			$errAction = "Stop"
+			
 			try {
-				$this = Get-CIMInstance -ClassName "Win32_ComputerSystem" -ComputerName $comp -OperationTimeoutSec $CIMTimeoutSec -ErrorAction "SilentlyContinue"
-				$this2 = Get-CIMInstance -ClassName "Win32_BIOS" -ComputerName $comp -OperationTimeoutSec $CIMTimeoutSec -ErrorAction "SilentlyContinue"
+				$result1 = Get-CIMInstance -ClassName "Win32_ComputerSystem" -ComputerName $comp -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+				$result2 = Get-CIMInstance -ClassName "Win32_BIOS" -ComputerName $comp -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
 			}
 			catch {
-			}
-			
-			$err = $null
-			if($this -and $this2) {
-				$this | Add-Member -NotePropertyName "Make" -NotePropertyValue $this.Manufacturer
-				$this | Add-Member -NotePropertyName "Memory" -NotePropertyValue "$([math]::round($this.TotalPhysicalMemory / 1MB))MB"
-				$this | Add-Member -NotePropertyName "Serial" -NotePropertyValue $this2.SerialNumber
-				$this | Add-Member -NotePropertyName "BIOS" -NotePropertyValue $this2.SMBIOSBIOSVersion
-			}
-			else {
-				$err = $true
-				$this = [PSCustomObject]@{
-					"Name" = $comp
+				$err = $_.Exception.Message
+				if(-not $err) {
+					$err = "Error"
 				}
 			}
-			$this | Add-Member -NotePropertyName "Error" -NotePropertyValue $err
+			$object | Add-Member -NotePropertyName "Error" -NotePropertyValue $err
 			
-			log "    $($this.Name),$($this.Error),$($this.Make),$($this.Model),$($this.Memory),$($this.Serial),$($this.BIOS)"
+			if($result1) {
+				$object | Add-Member -NotePropertyName "Make" -NotePropertyValue $result1.Manufacturer
+				$object | Add-Member -NotePropertyName "Model" -NotePropertyValue $result1.Model
+				$object | Add-Member -NotePropertyName "Memory" -NotePropertyValue "$([math]::round($result1.TotalPhysicalMemory / 1MB))MB"
+			}
 			
-			$this
+			if($result2) {
+				$object | Add-Member -NotePropertyName "Serial" -NotePropertyValue $result2.SerialNumber
+				$object | Add-Member -NotePropertyName "BIOS" -NotePropertyValue $result2.SMBIOSBIOSVersion
+			}
+			
+			log "    $($object.Name),$($object.Make),$($object.Model),$($object.Memory),$($object.Serial),$($object.BIOS),$($object.Error)"
+			
+			$object
 		}
 		log "Done retrieving data."
 			
 		$data
 	}
 	
-	function Print-Data($data) {
-		log ($data | Sort Name | Select Name,Error,Make,Model,Memory,Serial,BIOS | Format-Table -AutoSize -Wrap | Out-String).Trim() -NoTS
+	function Format-Data($data) {
+		$data | Sort Name | Select Name,Make,Model,Memory,Serial,BIOS,Error
 	}
 	
 	function Output-Csv($data) {
 		log "-Csv was specified. Outputting gathered data to `"$CSVPATH`"..."
-		$data | Sort Name | Select Name,Error,Make,Model,Memory,Serial,BIOS | Export-Csv -Path $CSVPATH -NoTypeInformation -Encoding Ascii
+		$data | Export-Csv -Path $CSVPATH -NoTypeInformation -Encoding Ascii
 		log "Done."
 		
 	}
 	
-	log " " -NoTS
-	
 	$comps = Get-Comps
 	$data = Get-Data $comps
-	log " " -NoTS
-	Print-Data $data
-	log " " -NoTS
+	$data = Format-Data $data
 	if($Csv) {
 		Output-Csv $data
 	}
-	log " " -NoTS
 	log "EOF"
-	log " " -NoTS
+	$data
 }

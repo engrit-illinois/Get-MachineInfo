@@ -50,6 +50,11 @@ Optional integer.
 The maximum number of computers which will be asynchronously polled simultaneously.  
 Default is `50`.  
 
+### -CIMTimeoutSec [int]
+Optional integer.  
+The number of seconds to wait for a CIM query to a target machine before giving up.  
+Default is `10`.  
+
 # Notes
 - Machines for which data could not be retrieved will have an `Error` value of `TRUE` and will have null data otherwise.
 - Machines for which data was retrieved will have a null `Error` value.
