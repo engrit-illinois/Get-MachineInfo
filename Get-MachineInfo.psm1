@@ -77,6 +77,7 @@ function Get-MachineInfo {
 			try {
 				$result1 = Get-CIMInstance -ClassName "Win32_ComputerSystem" -ComputerName $comp -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
 				$result2 = Get-CIMInstance -ClassName "Win32_BIOS" -ComputerName $comp -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+				$result3 = Get-CimInstance -ClassName "Win32_Tpm" -ComputerName $comp -Namespace "root\cimv2\security\microsofttpm" -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
 			}
 			catch {
 				$err = $_.Exception.Message
@@ -97,7 +98,11 @@ function Get-MachineInfo {
 				$object | Add-Member -NotePropertyName "BIOS" -NotePropertyValue $result2.SMBIOSBIOSVersion
 			}
 			
-			log "    $($object.Name),$($object.Make),$($object.Model),$($object.Memory),$($object.Serial),$($object.BIOS),$($object.Error)"
+			if($result3) {
+				$object | Add-Member -NotePropertyName "TPM" -NotePropertyValue $result3.ManufacturerVersion
+			}
+			
+			log "    $($object.Name),$($object.Make),$($object.Model),$($object.Memory),$($object.Serial),$($object.BIOS),$($object.TPM),$($object.Error)"
 			
 			$object
 		}
@@ -107,7 +112,7 @@ function Get-MachineInfo {
 	}
 	
 	function Format-Data($data) {
-		$data | Sort Name | Select Name,Make,Model,Memory,Serial,BIOS,Error
+		$data | Sort Name | Select Name,Make,Model,Memory,Serial,BIOS,TPM,Error
 	}
 	
 	function Output-Csv($data) {
