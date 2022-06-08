@@ -1,19 +1,27 @@
 # Summary
-This script reports various inventory-related info from a list of remote computers by polling them asynchronously.  
+This script reports various useful hardware info from a list of remote computers by polling them asynchronously.  
 It optionally outputs a log and a CSV file of the data.  
 
-This is an update of [Get-Model](https://github.com/engrit-illinois/Get-Model) primarily just to add the asynchronicity feature. This relies on the new `-Parallel` parameter of the `ForEach-Object` cmdlet, which makes this incompatible with PowerShell 5.1, a limitation not present in `Get-Model`.  
+This is an update of [Get-Model](https://github.com/engrit-illinois/Get-Model) primarily just to add the asynchronicity feature. This relies on the new `-Parallel` parameter of the `ForEach-Object` cmdlet, which makes this incompatible with PowerShell 5.1, a limitation not present in `Get-Model`. This new module also gathers quite a bit more information, including network adapter info.  
 
 # Usage
 1. Download `Get-MachineInfo.psm1` to `$HOME\Documents\WindowsPowerShell\Modules\Get-MachineInfo\Get-MachineInfo.psm1`
 2. Run it using the examples and parameter documentation below.
 
 # Examples
+If you're not exporting to CSV, it's recommended to capture the output in a variable, like so: `$info = Get-MachineInfo "computer-name" ...`.
+
 - `Get-MachineInfo "espl-114-01"`
 - `Get-MachineInfo "espl-114-01","espl-114-02","tb-207-01"`
 - `Get-MachineInfo "espl-114-*"`
 - `Get-MachineInfo "espl-114-*","tb-207-01","tb-306-*"`
 - `Get-MachineInfo -OUDN "OU=Instructional,OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu" -ComputerName "*" -LogDir "c:\engrit\logs" -Log -Csv`
+
+Capture the data and return just the MACs of the machines:
+```powershell
+$info = Get-MachineInfo "esb-apl-*"
+$info | Select Name,{ $_.NetAdapters.Mac }
+```
 
 # Parameters
 

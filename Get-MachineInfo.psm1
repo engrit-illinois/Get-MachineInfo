@@ -43,7 +43,7 @@ function Get-MachineInfo {
 			$Msg | Out-File $LOGPATH -Append
 		}
 	}
-
+	
 	function Get-Comps {
 		log "Getting computer names from AD..."
 		$comps = @()
@@ -59,60 +59,189 @@ function Get-MachineInfo {
 	
 	function Get-Data($comps) {
 		log "Retrieving data..."
-		log "    Name,Error,Make,Model,Memory,Serial,BiosVersion" -NoLog
+		#log "    Name,Error,Make,Model,Memory,Serial,BiosVersion" -NoLog
 		
 		$data = $comps | ForEach-Object -ThrottleLimit $ThrottleLimit -Parallel {
 			function log($msg) {
+				$ts = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+				$msg = "[$ts] $msg"
 				Write-Host $msg
 			}
+			
+			function count($array) {
+				$count = 0
+				if($array) {
+					# If we didn't check $array in the above if statement, this would return 1 if $array was $null
+					# i.e. @().count = 0, @($null).count = 1
+					$count = @($array).count
+					# We can't simply do $array.count, because if it's null, that would throw an error due to trying to access a method on a null object
+				}
+				$count
+			}
+			
+			function addm($property, $value, $object, $adObject = $false) {
+				if($adObject) {
+					$object | Add-Member -NotePropertyName $property -NotePropertyValue $value -Force
+				}
+				else {
+					$object | Add-Member -NotePropertyName $property -NotePropertyValue $value
+				}
+				$object
+			}
+			
+			function Get-ComputerSystemInfo($object) {
+				try {
+					$result = Get-CIMInstance -ClassName "Win32_ComputerSystem" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+				}
+				catch {
+					$err = $_.Exception.Message
+					if(-not $err) { $err = "Unknown error" }
+				}
+				finally {
+					if(-not $err) {
+						if($result) {
+							$object = addm "Make" $result.Manufacturer $object
+							$object = addm "Model" $result.Model $object
+							$object = addm "Memory" "$([math]::round($result.TotalPhysicalMemory / 1MB))MB" $object
+						}
+					}
+					if($err) {
+						$object = addm "Error_CompInfo" $err $object
+						$object.Error = $true
+					}
+				}
+				
+				$object
+			}
+			
+			function Get-BiosInfo($object) {
+				try {
+					$result = Get-CIMInstance -ClassName "Win32_BIOS" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+				}
+				catch {
+					$err = $_.Exception.Message
+					if(-not $err) { $err = "Unknown error" }
+				}
+				finally {
+					if(-not $err) {
+						if($result) {
+							$object = addm "Serial" $result.SerialNumber $object
+							$object = addm "BIOS" $result.SMBIOSBIOSVersion $object
+						}
+					}
+					if($err) {
+						$object = addm "Error_BiosInfo" $err $object
+						$object.Error = $true
+					}
+				}
+				
+				$object
+			}
+			
+			function Get-TpmInfo($object) {
+				try {
+					$result = Get-CimInstance -ClassName "Win32_Tpm" -ComputerName $object.Name -Namespace "root\cimv2\security\microsofttpm" -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+				}
+				catch {
+					$err = $_.Exception.Message
+					if(-not $err) { $err = "Unknown error" }
+				}
+				finally {
+					if(-not $err) {
+						if($result) {
+							$object = addm "TPM" $result.ManufacturerVersion $object
+						}
+					}
+					if($err) {
+						$object = addm "Error_TpmInfo" $err $object
+						$object.Error = $true
+					}
+				}
+				
+				$object
+			}
+			
+			function Get-NetworkAdapterInfo($object) {
+				
+				# get-ciminstance win32_networkadapter | select name,macaddress,guid,status,networkaddresses,adaptertype,netconnectionid,netconnectionstatus,netenabled,physicaladapter | ft
+					
+				# get-ciminstance win32_networkadapterconfiguration | select description,dnshostname,dnsdomainsuffixsearchorder,ipaddress,ipenabled,settingid,macaddress | ft
+					
+				try {
+					$adapterResults = Get-CimInstance -ClassName "Win32_NetworkAdapter" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+					$configResults = Get-CimInstance -ClassName "Win32_NetworkAdapterConfiguration" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+				}
+				catch {
+					$err = $_.Exception.Message
+					if(-not $err) {
+						$err = "Unknown error"
+					}
+				}
+				finally {
+					if(-not $err) {
+						if($adapterResults) {
+							if($configResults) {
+								$physicalAdapterResults = $adapterResults | Where { $_.PhysicalAdapter }
+								$adapterData = $physicalAdapterResults | ForEach-Object {
+									$adapterResult = $_
+									$configResult = $configResults | Where { $_.SettingID -like $adapterResult.GUID }
+									if($configResult) {
+										$configResultCount = count $configResult
+										if($configResultCount -eq 1) {
+											[PSCustomObject]@{
+												"Mac" = $configResult | Select -ExpandProperty "MACAddress"
+												"Ips" = $configResult | Select -ExpandProperty "IPAddress"
+												"DnsHostname" = $configResult | Select -ExpandProperty "DNSHostName"
+												"Name" = $configResult | Select -ExpandProperty "Description"
+												"Gateway" = $configResult | Select -ExpandProperty "DefaultIPGateway"
+												"DhcpEnabled" = $configResult | Select -ExpandProperty "DHCPEnabled"
+												"DhcpServer" = $configResult | Select -ExpandProperty "DHCPServer"
+												"DhcpLeaseObtained" = $configResult | Select -ExpandProperty "DHCPLeaseObtained"
+											}
+										}
+										elseif($configResultCount -lt 1) { $err = "No configuration found for one or more physical adapters, or configuration info is invalid!" }
+										else { $err = "Multiple configurations found for one or more physical adapters!" }
+									}
+									else { $err = "No configuration found for one or more physical adapters!" }
+								}
+								$object = addm "NetAdapters" $adapterData $object
+							}
+							else { $err = "No adapter configuration info returned!" }
+						}
+						else { $err = "No adapter info returned!" }
+					}
+					if($err) {
+						$object = addm "Error_NetInfo" $err $object
+						$object.Error = $true
+					}
+				}
+				
+				$object
+			}
+			
+			log "    Retrieving data for: `"$_`"..."
 			
 			$comp = $_
 			$object = [PSCustomObject]@{
 				"Name" = $comp
+				"Error" = $false
 			}
 			
 			$CIMTimeoutSec = $using:CimTimeoutSec
 			$errAction = "Stop"
 			
-			try {
-				$result1 = Get-CIMInstance -ClassName "Win32_ComputerSystem" -ComputerName $comp -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-				$result2 = Get-CIMInstance -ClassName "Win32_BIOS" -ComputerName $comp -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-				$result3 = Get-CimInstance -ClassName "Win32_Tpm" -ComputerName $comp -Namespace "root\cimv2\security\microsofttpm" -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-			}
-			catch {
-				$err = $_.Exception.Message
-				if(-not $err) {
-					$err = "Error"
-				}
-			}
-			$object | Add-Member -NotePropertyName "Error" -NotePropertyValue $err
+			$object = Get-ComputerSystemInfo $object
+			$object = Get-BiosInfo $object
+			$object = Get-TpmInfo $object
+			$object = Get-NetworkAdapterInfo $object
 			
-			if($result1) {
-				$object | Add-Member -NotePropertyName "Make" -NotePropertyValue $result1.Manufacturer
-				$object | Add-Member -NotePropertyName "Model" -NotePropertyValue $result1.Model
-				$object | Add-Member -NotePropertyName "Memory" -NotePropertyValue "$([math]::round($result1.TotalPhysicalMemory / 1MB))MB"
-			}
-			
-			if($result2) {
-				$object | Add-Member -NotePropertyName "Serial" -NotePropertyValue $result2.SerialNumber
-				$object | Add-Member -NotePropertyName "BIOS" -NotePropertyValue $result2.SMBIOSBIOSVersion
-			}
-			
-			if($result3) {
-				$object | Add-Member -NotePropertyName "TPM" -NotePropertyValue $result3.ManufacturerVersion
-			}
-			
-			log "    $($object.Name),$($object.Make),$($object.Model),$($object.Memory),$($object.Serial),$($object.BIOS),$($object.TPM),$($object.Error)"
+			#log "    $($object.Name),$($object.Make),$($object.Model),$($object.Memory),$($object.Serial),$($object.BIOS),$($object.TPM),$($object.Error)"
 			
 			$object
 		}
 		log "Done retrieving data."
 			
 		$data
-	}
-	
-	function Format-Data($data) {
-		$data | Sort Name | Select Name,Make,Model,Memory,Serial,BIOS,TPM,Error
 	}
 	
 	function Output-Csv($data) {
@@ -124,7 +253,6 @@ function Get-MachineInfo {
 	
 	$comps = Get-Comps
 	$data = Get-Data $comps
-	$data = Format-Data $data
 	if($Csv) {
 		Output-Csv $data
 	}
