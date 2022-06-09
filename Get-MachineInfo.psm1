@@ -161,6 +161,15 @@ function Get-MachineInfo {
 				$object
 			}
 			
+			function Get-Ipv4($ips) {
+				$ipv4 = "unknown"
+				$ipv4Regex = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+				@($ips) | ForEach-Object {
+					if($_ -match $ipv4Regex) { $ipv4 = $_ }
+				}
+				$ipv4
+			}
+			
 			function Get-NetworkAdapterInfo($object) {
 				
 				# get-ciminstance win32_networkadapter | select name,macaddress,guid,status,networkaddresses,adaptertype,netconnectionid,netconnectionstatus,netenabled,physicaladapter | ft
@@ -188,9 +197,12 @@ function Get-MachineInfo {
 									if($configResult) {
 										$configResultCount = count $configResult
 										if($configResultCount -eq 1) {
+											$ips = $configResult | Select -ExpandProperty "IPAddress"
+											$ipv4 = Get-Ipv4 $ips
 											[PSCustomObject]@{
 												"Mac" = $configResult | Select -ExpandProperty "MACAddress"
-												"Ips" = $configResult | Select -ExpandProperty "IPAddress"
+												"Ips" = $ips
+												"Ipv4" = $ipv4
 												"DnsHostname" = $configResult | Select -ExpandProperty "DNSHostName"
 												"Name" = $configResult | Select -ExpandProperty "Description"
 												"Gateway" = $configResult | Select -ExpandProperty "DefaultIPGateway"
