@@ -114,6 +114,29 @@ function Get-MachineInfo {
 				$object
 			}
 			
+			function Get-OperatingSystemInfo($object) {
+				try {
+					$result = Get-CIMInstance -ClassName "Win32_OperatingSystem" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+				}
+				catch {
+					$err = $_.Exception.Message
+					if(-not $err) { $err = "Unknown error" }
+				}
+				finally {
+					if(-not $err) {
+						if($result) {
+							$object = addm "OS" $result.Version $object
+						}
+					}
+					if($err) {
+						$object = addm "Error_OsInfo" $err $object
+						$object.Error = $true
+					}
+				}
+				
+				$object
+			}
+			
 			function Get-BiosInfo($object) {
 				try {
 					$result = Get-CIMInstance -ClassName "Win32_BIOS" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
@@ -243,6 +266,7 @@ function Get-MachineInfo {
 			$errAction = "Stop"
 			
 			$object = Get-ComputerSystemInfo $object
+			$object = Get-OperatingSystemInfo $object
 			$object = Get-BiosInfo $object
 			$object = Get-TpmInfo $object
 			$object = Get-NetworkAdapterInfo $object
