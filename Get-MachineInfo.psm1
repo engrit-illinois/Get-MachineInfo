@@ -137,6 +137,29 @@ function Get-MachineInfo {
 				$object
 			}
 			
+			function Get-SystemEnclosureInfo($object) {
+				try {
+					$result = Get-CIMInstance -ClassName "Win32_SystemEnclosure" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
+				}
+				catch {
+					$err = $_.Exception.Message
+					if(-not $err) { $err = "Unknown error" }
+				}
+				finally {
+					if(-not $err) {
+						if($result) {
+							$object = addm "AssetTag" $result.SMBIOSAssetTag $object
+						}
+					}
+					if($err) {
+						$object = addm "Error_SysEncInfo" $err $object
+						$object.Error = $true
+					}
+				}
+				
+				$object
+			}
+			
 			function Get-BiosInfo($object) {
 				try {
 					$result = Get-CIMInstance -ClassName "Win32_BIOS" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
@@ -267,6 +290,7 @@ function Get-MachineInfo {
 			
 			$object = Get-ComputerSystemInfo $object
 			$object = Get-OperatingSystemInfo $object
+			$object = Get-SystemEnclosureInfo $object
 			$object = Get-BiosInfo $object
 			$object = Get-TpmInfo $object
 			$object = Get-NetworkAdapterInfo $object
