@@ -3,7 +3,7 @@ function Get-MachineInfo {
 	
 	param(
 		[Parameter(Mandatory=$true,Position=0)]
-		[string[]]$ComputerName,
+		[string[]]$ComputerNames,
 		
 		[string]$OUDN = "OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu",
 		
@@ -47,13 +47,18 @@ function Get-MachineInfo {
 	function Get-Comps {
 		log "Getting computer names from AD..."
 		$comps = @()
-		$ComputerName | ForEach-Object {
+		$ComputerNames | ForEach-Object {
 			$query = $_
 			$results = Get-ADComputer -Filter "name -like '$query'" -SearchBase $OUDN | Select -ExpandProperty name
 			$comps += @($results)
 		}
-		$joinString = "`",`""
-		log "    Computers: `"$($comps -join $joinString)`"."
+		
+		if($comps) {
+			$joinString = "`",`""
+			$compsString = $comps -join $joinString
+			log "    Computers: `"$compsString`"."
+		}
+		else { log "    No matching AD computer objects found!" }
 		$comps
 	}
 	
@@ -312,9 +317,11 @@ function Get-MachineInfo {
 	}
 	
 	$comps = Get-Comps
-	$data = Get-Data $comps
-	if($Csv) {
-		Output-Csv $data
+	if($comps) {
+		$data = Get-Data $comps
+		if($Csv) {
+			Output-Csv $data
+		}
 	}
 	log "EOF"
 	$data
