@@ -9,18 +9,26 @@ This is an update of [Get-Model](https://github.com/engrit-illinois/Get-Model) p
 2. Run it using the examples and parameter documentation below.
 
 # Examples
-If you're not exporting to CSV, it's recommended to capture the output in a variable, like so: `$info = Get-MachineInfo "computer-name" ...`.
 
-- `Get-MachineInfo "espl-114-01"`
+### Return info for single machine
+`Get-MachineInfo "espl-114-01"`
+
+### Return info for multiple specific machines
 - `Get-MachineInfo "espl-114-01","espl-114-02","tb-207-01"`
-- `Get-MachineInfo "espl-114-*"`
-- `Get-MachineInfo "espl-114-*","tb-207-01","tb-306-*"`
-- `Get-MachineInfo -OUDN "OU=Instructional,OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu" -ComputerName "*" -LogDir "c:\engrit\logs" -Log -Csv`
 
-Capture the data and return just the MACs of the machines:
+### Return info for multiple machines matching a wildcard query
+- `Get-MachineInfo "espl-114-*"`
+
+### Return info for multiple queries
+- `Get-MachineInfo "espl-114-*","tb-207-01","tb-306-*"`
+
+### Return info for all machines in a given OU
+- `Get-MachineInfo -OUDN "OU=Instructional,OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu" -ComputerName "*"
+
+### Capture the info silently and return just the MACs of the machines:
 ```powershell
-$info = Get-MachineInfo "esb-apl-*"
-$info | Select Name,{ $_.NetAdapters.Mac }
+$info = Get-MachineInfo "esb-apl-*" -NoConsoleOutput -PassThru
+$info | Select Name,{$_.NetAdapters.Mac}
 ```
 
 # Parameters
@@ -36,22 +44,11 @@ Optional string.
 The distinguished name of the OU to limit the computername search to.  
 Default is `"OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu"`.  
 
-### -Log
+### -PassThru
 Optional switch.  
-Whether or not to log output to a log file.  
-Log filename will be `Get-MachineInfo_yyyy-MM-dd_HH-mm-ss.log`.  
-Log will be created in the directory specified by the `-LogDir` parameter.  
-
-### -Csv
-Optional switch.  
-Whether or not to log retrieved data to a CSV file.  
-CSV filename will be `Get-MachineInfo_yyyy-MM-dd_HH-mm-ss.csv`.  
-CSV will be created in the directory specified by the `-LogDir` parameter.  
-
-### -LogDir [string]
-Optional string.  
-The directory in which to create log and/or CSV files, if any are created.  
-Default is `"c:\engrit\logs"`.  
+If specified, the resulting info is returned in a PowerShell object.  
+If not specified, nothing is returned to the output stream, except logging (if any).  
+When specifying -PassThru, capture the info like so: `$info = Get-MachineInfo ...`.  
 
 ### -ThrottleLimit [int]
 Optional integer.  
@@ -62,6 +59,47 @@ Default is `50`.
 Optional integer.  
 The number of seconds to wait for a CIM query to a target machine before giving up.  
 Default is `10`.  
+
+### -Log \<string\>
+Optional string.  
+The full path of a text file to log to.  
+If omitted, no log will be created.  
+If `:TS:` is given as part of the string, it will be replaced by a timestamp of when the script was started, with a format specified by `-LogFileTimestampFormat`.  
+Specify `:ENGRIT:` to use a default path (i.e. `c:\engrit\logs\<Module-Name>_<timestamp>.log`).  
+
+### -Csv \<string\>
+Optional string.  
+The full path of a CSV file to output resulting data to.  
+If omitted, no CSV will be created.  
+If `:TS:` is given as part of the string, it will be replaced by a timestamp of when the script was started, with a format specified by `-LogFileTimestampFormat`.  
+Specify `:ENGRIT:` to use a default path (i.e. `c:\engrit\logs\<Module-Name>_<timestamp>.csv`).  
+
+### -NoConsoleOutput
+Optional switch.  
+If specified, progress output is not logged to the console.  
+
+### -Indent \<string\>
+Optional string.  
+The string used as an indent, when indenting log entries.  
+Default is four space characters.  
+
+### -LogFileTimestampFormat \<string\>
+Optional string.  
+The format of the timestamp used in filenames which include `:TS:`.  
+Default is `yyyy-MM-dd_HH-mm-ss`.  
+
+### -LogLineTimestampFormat \<string\>
+Optional string.  
+The format of the timestamp which prepends each log line.  
+Default is `[HH:mm:ss:ffff]⎵`.  
+
+### -Verbosity \<int\>
+Optional integer.  
+The level of verbosity to include in output logged to the console and logfile.  
+Currently not significantly implemented.  
+Default is `0`.  
+<br />
+<br />
 
 # Notes
 - Machines for which data could not be retrieved will have an `Error` value of `TRUE` and will have null data otherwise.
