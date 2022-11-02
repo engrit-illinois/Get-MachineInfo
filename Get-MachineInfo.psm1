@@ -280,6 +280,8 @@ function Get-MachineInfo {
 						if($result) {
 							$object = addm "OsRev" $result.UBR $object
 							$object = addm "OsRelease" $result.DisplayVersion $object
+							# Don't want to gather the full build number from here exclusively, because there's two ambiguous locations for the build number
+							# https://stackoverflow.com/questions/37877599/hklm-software-microsoft-windows-nt-currentversion-whats-the-difference-between
 						}
 					}
 					if($err) {
