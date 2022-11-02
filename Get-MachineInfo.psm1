@@ -255,11 +255,35 @@ function Get-MachineInfo {
 				finally {
 					if(-not $err) {
 						if($result) {
-							$object = addm "OS" $result.Version $object
+							$object = addm "OsBuild" $result.Version $object
 						}
 					}
 					if($err) {
 						$object = addm "Error_OsInfo" $err $object
+						$object.Error = $true
+					}
+				}
+				
+				$object
+			}
+			
+			function Get-OperatingSystemInfo2($object) {
+				try {
+					$result = Invoke-Command -ComputerName $_ -ScriptBlock { Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' }
+				}
+				catch {
+					$err = $_.Exception.Message
+					if(-not $err) { $err = "Unknown error" }
+				}
+				finally {
+					if(-not $err) {
+						if($result) {
+							$object = addm "OsRev" $result.UBR $object
+							$object = addm "OsRelease" $result.DisplayVersion $object
+						}
+					}
+					if($err) {
+						$object = addm "Error_Os2Info" $err $object
 						$object.Error = $true
 					}
 				}
@@ -422,6 +446,7 @@ function Get-MachineInfo {
 				
 				$object = Get-ComputerSystemInfo $object
 				$object = Get-OperatingSystemInfo $object
+				$object = Get-OperatingSystemInfo2 $object
 				$object = Get-SystemEnclosureInfo $object
 				$object = Get-BiosInfo $object
 				$object = Get-TpmInfo $object
@@ -449,7 +474,7 @@ function Get-MachineInfo {
 	
 	function Print-Data($data) {
 		log "Data:"
-		$printData = $data | Select Name,Error,Make,Model,Memory,OS,AssetTag,Serial,BIOS,TPM,@{Name="MAC";Expression={$_.NetAdapters.Mac}}
+		$printData = $data | Select Name,Error,Make,Model,Memory,OsBuild,OsRev,OsRelease,AssetTag,Serial,BIOS,TPM,@{Name="MAC";Expression={$_.NetAdapters.Mac}}
 		Log-Object $printData -L 1
 	}
 	
