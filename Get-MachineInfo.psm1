@@ -9,8 +9,6 @@ function Get-MachineInfo {
 		
 		[switch]$PassThru,
 		
-		[int]$CIMTimeoutSec = 10,
-		
 		[int]$ThrottleLimit = 50,
 		
 		# ":ENGRIT:" will be replaced with "c:\engrit\logs\$($MODULE_NAME)_:TS:.csv"
@@ -188,26 +186,7 @@ function Get-MachineInfo {
 	function Get-Data($comps) {
 		log "Retrieving data..."
 		
-		$data = $comps | ForEach-Object -ThrottleLimit $ThrottleLimit -Parallel {
-			$NoConsoleOutput = $using:NoConsoleOutput
-			function log($msg) {
-				if(-not $NoConsoleOutput) {
-					$ts = Get-Date -Format "HH:mm:ss"
-					$msg = "[$ts] $msg"
-					Write-Host $msg
-				}
-			}
-			
-			function count($array) {
-				$count = 0
-				if($array) {
-					# If we didn't check $array in the above if statement, this would return 1 if $array was $null
-					# i.e. @().count = 0, @($null).count = 1
-					$count = @($array).count
-					# We can't simply do $array.count, because if it's null, that would throw an error due to trying to access a method on a null object
-				}
-				$count
-			}
+		$objects = $comps | ForEach-Object -ThrottleLimit $ThrottleLimit -Parallel {
 			
 			function addm($property, $value, $object, $adObject = $false) {
 				if($adObject) {
@@ -219,242 +198,304 @@ function Get-MachineInfo {
 				$object
 			}
 			
-			function Get-ComputerSystemInfo($object) {
-				try {
-					$result = Get-CIMInstance -ClassName "Win32_ComputerSystem" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-				}
-				catch {
-					$err = $_.Exception.Message
-					if(-not $err) { $err = "Unknown error" }
-				}
-				finally {
-					if(-not $err) {
-						if($result) {
-							$object = addm "Make" $result.Manufacturer $object
-							$object = addm "Model" $result.Model $object
-							$object = addm "Memory" "$([math]::round($result.TotalPhysicalMemory / 1MB))MB" $object
-						}
-					}
-					if($err) {
-						$object = addm "Error_CompInfo" $err $object
-						$object.Error = $true
-					}
-				}
+			function Get-ScriptBlock {
 				
-				$object
-			}
-			
-			function Get-OperatingSystemInfo($object) {
-				try {
-					$result = Get-CIMInstance -ClassName "Win32_OperatingSystem" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-				}
-				catch {
-					$err = $_.Exception.Message
-					if(-not $err) { $err = "Unknown error" }
-				}
-				finally {
-					if(-not $err) {
-						if($result) {
-							$object = addm "OsBuild" $result.Version $object
-						}
-					}
-					if($err) {
-						$object = addm "Error_OsInfo" $err $object
-						$object.Error = $true
-					}
-				}
-				
-				$object
-			}
-			
-			function Get-OperatingSystemInfo2($object) {
-				try {
-					$result = Invoke-Command -ComputerName $_ -ScriptBlock { Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' }
-				}
-				catch {
-					$err = $_.Exception.Message
-					if(-not $err) { $err = "Unknown error" }
-				}
-				finally {
-					if(-not $err) {
-						if($result) {
-							$object = addm "OsRev" $result.UBR $object
-							$object = addm "OsRelease" $result.DisplayVersion $object
-							# Don't want to gather the full build number from here exclusively, because there's two ambiguous locations for the build number
-							# https://stackoverflow.com/questions/37877599/hklm-software-microsoft-windows-nt-currentversion-whats-the-difference-between
-						}
-					}
-					if($err) {
-						$object = addm "Error_Os2Info" $err $object
-						$object.Error = $true
-					}
-				}
-				
-				$object
-			}
-			
-			function Get-SystemEnclosureInfo($object) {
-				try {
-					$result = Get-CIMInstance -ClassName "Win32_SystemEnclosure" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-				}
-				catch {
-					$err = $_.Exception.Message
-					if(-not $err) { $err = "Unknown error" }
-				}
-				finally {
-					if(-not $err) {
-						if($result) {
-							$object = addm "AssetTag" $result.SMBIOSAssetTag $object
-						}
-					}
-					if($err) {
-						$object = addm "Error_SysEncInfo" $err $object
-						$object.Error = $true
-					}
-				}
-				
-				$object
-			}
-			
-			function Get-BiosInfo($object) {
-				try {
-					$result = Get-CIMInstance -ClassName "Win32_BIOS" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-				}
-				catch {
-					$err = $_.Exception.Message
-					if(-not $err) { $err = "Unknown error" }
-				}
-				finally {
-					if(-not $err) {
-						if($result) {
-							$object = addm "Serial" $result.SerialNumber $object
-							$object = addm "BIOS" $result.SMBIOSBIOSVersion $object
-						}
-					}
-					if($err) {
-						$object = addm "Error_BiosInfo" $err $object
-						$object.Error = $true
-					}
-				}
-				
-				$object
-			}
-			
-			function Get-TpmInfo($object) {
-				try {
-					$result = Get-CimInstance -ClassName "Win32_Tpm" -ComputerName $object.Name -Namespace "root\cimv2\security\microsofttpm" -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-				}
-				catch {
-					$err = $_.Exception.Message
-					if(-not $err) { $err = "Unknown error" }
-				}
-				finally {
-					if(-not $err) {
-						if($result) {
-							$object = addm "TPM" $result.ManufacturerVersion $object
-						}
-					}
-					if($err) {
-						$object = addm "Error_TpmInfo" $err $object
-						$object.Error = $true
-					}
-				}
-				
-				$object
-			}
-			
-			function Get-Ipv4($ips) {
-				$ipv4 = "unknown"
-				$ipv4Regex = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
-				@($ips) | ForEach-Object {
-					if($_ -match $ipv4Regex) { $ipv4 = $_ }
-				}
-				$ipv4
-			}
-			
-			function Get-NetworkAdapterInfo($object) {
-				
-				# get-ciminstance win32_networkadapter | select name,macaddress,guid,status,networkaddresses,adaptertype,netconnectionid,netconnectionstatus,netenabled,physicaladapter | ft
+				$scriptBlock = {
 					
-				# get-ciminstance win32_networkadapterconfiguration | select description,dnshostname,dnsdomainsuffixsearchorder,ipaddress,ipenabled,settingid,macaddress | ft
+					$errAction = "Stop"
 					
-				try {
-					$adapterResults = Get-CimInstance -ClassName "Win32_NetworkAdapter" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-					$configResults = Get-CimInstance -ClassName "Win32_NetworkAdapterConfiguration" -ComputerName $object.Name -OperationTimeoutSec $CIMTimeoutSec -ErrorAction $errAction
-				}
-				catch {
-					$err = $_.Exception.Message
-					if(-not $err) {
-						$err = "Unknown error"
+					function count($array) {
+						$count = 0
+						if($array) {
+							# If we didn't check $array in the above if statement, this would return 1 if $array was $null
+							# i.e. @().count = 0, @($null).count = 1
+							$count = @($array).count
+							# We can't simply do $array.count, because if it's null, that would throw an error due to trying to access a method on a null object
+						}
+						$count
 					}
-				}
-				finally {
-					if(-not $err) {
-						if($adapterResults) {
-							if($configResults) {
-								$physicalAdapterResults = $adapterResults | Where { $_.PhysicalAdapter }
-								$adapterData = $physicalAdapterResults | ForEach-Object {
-									$adapterResult = $_
-									$configResult = $configResults | Where { $_.SettingID -like $adapterResult.GUID }
-									if($configResult) {
-										$configResultCount = count $configResult
-										if($configResultCount -eq 1) {
-											$ips = $configResult | Select -ExpandProperty "IPAddress"
-											$ipv4 = Get-Ipv4 $ips
-											[PSCustomObject]@{
-												"Mac" = $configResult | Select -ExpandProperty "MACAddress"
-												"Ips" = $ips
-												"Ipv4" = $ipv4
-												"DnsHostname" = $configResult | Select -ExpandProperty "DNSHostName"
-												"Name" = $configResult | Select -ExpandProperty "Description"
-												"Gateway" = $configResult | Select -ExpandProperty "DefaultIPGateway"
-												"DhcpEnabled" = $configResult | Select -ExpandProperty "DHCPEnabled"
-												"DhcpServer" = $configResult | Select -ExpandProperty "DHCPServer"
-												"DhcpLeaseObtained" = $configResult | Select -ExpandProperty "DHCPLeaseObtained"
-											}
-										}
-										elseif($configResultCount -lt 1) { $err = "No configuration found for one or more physical adapters, or configuration info is invalid!" }
-										else { $err = "Multiple configurations found for one or more physical adapters!" }
-									}
-									else { $err = "No configuration found for one or more physical adapters!" }
+					
+					function addm($property, $value, $object, $adObject = $false) {
+						if($adObject) {
+							$object | Add-Member -NotePropertyName $property -NotePropertyValue $value -Force
+						}
+						else {
+							$object | Add-Member -NotePropertyName $property -NotePropertyValue $value
+						}
+						$object
+					}
+					
+					function Get-ComputerSystemInfo($data) {
+						try {
+							$result = Get-CIMInstance -ClassName "Win32_ComputerSystem" -ErrorAction $errAction
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) { $err = "Unknown error" }
+						}
+						finally {
+							if(-not $err) {
+								if($result) {
+									$data = addm "Make" $result.Manufacturer $data
+									$data = addm "Model" $result.Model $data
+									$data = addm "Memory" "$([math]::round($result.TotalPhysicalMemory / 1MB))MB" $data
 								}
-								$object = addm "NetAdapters" $adapterData $object
 							}
-							else { $err = "No adapter configuration info returned!" }
+							if($err) {
+								$data = addm "Error_CompInfo" $err $data
+								$data.Error_Data = $true
+							}
 						}
-						else { $err = "No adapter info returned!" }
+						
+						$data
 					}
-					if($err) {
-						$object = addm "Error_NetInfo" $err $object
-						$object.Error = $true
+					
+					function Get-OperatingSystemInfo($data) {
+						try {
+							$result = Get-CIMInstance -ClassName "Win32_OperatingSystem" -ErrorAction $errAction
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) { $err = "Unknown error" }
+						}
+						finally {
+							if(-not $err) {
+								if($result) {
+									$data = addm "OsBuild" $result.Version $data
+								}
+							}
+							if($err) {
+								$data = addm "Error_OsInfo" $err $data
+								$data.Error_Data = $true
+							}
+						}
+						
+						$data
 					}
+					
+					function Get-OperatingSystemInfo2($data) {
+						try {
+							$result = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) { $err = "Unknown error" }
+						}
+						finally {
+							if(-not $err) {
+								if($result) {
+									$data = addm "OsRev" $result.UBR $data
+									$data = addm "OsRelease" $result.DisplayVersion $data
+									# Don't want to gather the full build number from here exclusively, because there's two ambiguous locations for the build number
+									# https://stackoverflow.com/questions/37877599/hklm-software-microsoft-windows-nt-currentversion-whats-the-difference-between
+								}
+							}
+							if($err) {
+								$data = addm "Error_Os2Info" $err $data
+								$data.Error_Data = $true
+							}
+						}
+						
+						$data
+					}
+					
+					function Get-SystemEnclosureInfo($data) {
+						try {
+							$result = Get-CIMInstance -ClassName "Win32_SystemEnclosure" -ErrorAction $errAction
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) { $err = "Unknown error" }
+						}
+						finally {
+							if(-not $err) {
+								if($result) {
+									$data = addm "AssetTag" $result.SMBIOSAssetTag $data
+								}
+							}
+							if($err) {
+								$data = addm "Error_SysEncInfo" $err $data
+								$data.Error_Data = $true
+							}
+						}
+						
+						$data
+					}
+					
+					function Get-BiosInfo($data) {
+						try {
+							$result = Get-CIMInstance -ClassName "Win32_BIOS" -ErrorAction $errAction
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) { $err = "Unknown error" }
+						}
+						finally {
+							if(-not $err) {
+								if($result) {
+									$data = addm "Serial" $result.SerialNumber $data
+									$data = addm "BIOS" $result.SMBIOSBIOSVersion $data
+								}
+							}
+							if($err) {
+								$data = addm "Error_BiosInfo" $err $data
+								$data.Error_Data = $true
+							}
+						}
+						
+						$data
+					}
+					
+					function Get-TpmInfo($data) {
+						try {
+							$result = Get-CimInstance -ClassName "Win32_Tpm" -Namespace "root\cimv2\security\microsofttpm" -ErrorAction $errAction
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) { $err = "Unknown error" }
+						}
+						finally {
+							if(-not $err) {
+								if($result) {
+									$data = addm "TPM" $result.ManufacturerVersion $data
+								}
+							}
+							if($err) {
+								$data = addm "Error_TpmInfo" $err $data
+								$data.Error_Data = $true
+							}
+						}
+						
+						$data
+					}
+					
+					function Get-NetworkAdapterInfo($data) {
+						
+						function Get-Ipv4($ips) {
+							$ipv4 = "unknown"
+							$ipv4Regex = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+							@($ips) | ForEach-Object {
+								if($_ -match $ipv4Regex) { $ipv4 = $_ }
+							}
+							$ipv4
+						}
+						
+						# get-ciminstance win32_networkadapter | select name,macaddress,guid,status,networkaddresses,adaptertype,netconnectionid,netconnectionstatus,netenabled,physicaladapter | ft
+							
+						# get-ciminstance win32_networkadapterconfiguration | select description,dnshostname,dnsdomainsuffixsearchorder,ipaddress,ipenabled,settingid,macaddress | ft
+							
+						try {
+							$adapterResults = Get-CimInstance -ClassName "Win32_NetworkAdapter" -ErrorAction $errAction
+							$configResults = Get-CimInstance -ClassName "Win32_NetworkAdapterConfiguration" -ErrorAction $errAction
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) {
+								$err = "Unknown error"
+							}
+						}
+						finally {
+							if(-not $err) {
+								if($adapterResults) {
+									if($configResults) {
+										$physicalAdapterResults = $adapterResults | Where { $_.PhysicalAdapter } | Where {$_.Name -notlike "*Cisco AnyConnect*" }
+										$adapterData = $physicalAdapterResults | ForEach-Object {
+											$adapterResult = $_
+											$configResult = $configResults | Where { $_.SettingID -like $adapterResult.GUID }
+											if($configResult) {
+												$configResultCount = count $configResult
+												if($configResultCount -eq 1) {
+													$ips = $configResult | Select -ExpandProperty "IPAddress"
+													$ipv4 = Get-Ipv4 $ips
+													[PSCustomObject]@{
+														"Mac" = $configResult | Select -ExpandProperty "MACAddress"
+														"Ips" = $ips
+														"Ipv4" = $ipv4
+														"DnsHostname" = $configResult | Select -ExpandProperty "DNSHostName"
+														"Name" = $configResult | Select -ExpandProperty "Description"
+														"Gateway" = $configResult | Select -ExpandProperty "DefaultIPGateway"
+														"DhcpEnabled" = $configResult | Select -ExpandProperty "DHCPEnabled"
+														"DhcpServer" = $configResult | Select -ExpandProperty "DHCPServer"
+														"DhcpLeaseObtained" = $configResult | Select -ExpandProperty "DHCPLeaseObtained"
+													}
+												}
+												elseif($configResultCount -lt 1) { $err = "No configuration found for one or more physical adapters, or configuration info is invalid!" }
+												else { $err = "Multiple configurations found for one or more physical adapters!" }
+											}
+											else { $err = "No configuration found for one or more physical adapters!" }
+										}
+										$data = addm "NetAdapters" $adapterData $data
+									}
+									else { $err = "No adapter configuration info returned!" }
+								}
+								else { $err = "No adapter info returned!" }
+							}
+							if($err) {
+								$data = addm "Error_NetInfo" $err $data
+								$data.Error_Data = $true
+							}
+						}
+						
+						$data
+					}
+					
+					$data = [PSCustomObject]@{
+						"Error_Data" = $false
+					}
+				
+					$data = Get-ComputerSystemInfo $data
+					$data = Get-OperatingSystemInfo $data
+					$data = Get-OperatingSystemInfo2 $data
+					$data = Get-SystemEnclosureInfo $data
+					$data = Get-BiosInfo $data
+					$data = Get-TpmInfo $data
+					$data = Get-NetworkAdapterInfo $data
+					
+					$data
 				}
 				
-				$object
+				$scriptBlock
 			}
+			
 			
 			function Do-Stuff {
-				
-				log "    Retrieving data for: `"$_`"..."
-				
 				$comp = $_
+				
+				#log "Retrieving data for: `"$comp`"..." -L 1 -V 1
+				
 				$object = [PSCustomObject]@{
 					"Name" = $comp
 					"Error" = $false
+					"Error_Invoke" = $false
 				}
 				
-				$CIMTimeoutSec = $using:CimTimeoutSec
-				$errAction = "Stop"
+				$scriptBlock = Get-ScriptBlock
 				
-				$object = Get-ComputerSystemInfo $object
-				$object = Get-OperatingSystemInfo $object
-				$object = Get-OperatingSystemInfo2 $object
-				$object = Get-SystemEnclosureInfo $object
-				$object = Get-BiosInfo $object
-				$object = Get-TpmInfo $object
-				$object = Get-NetworkAdapterInfo $object
+				try {
+					$data = Invoke-Command -ComputerName $comp -ScriptBlock $scriptBlock
+				}
+				catch {
+					$err = $_.Exception.Message
+					if(-not $err) { $err = "Unknown error" }
+				}
+				finally {
+					if(-not $err) {
+						if($data) {
+							# Merge new data into existing object
+							$dataMembers = $data | Get-Member -MemberType "NoteProperty"
+							$dataMembers | ForEach-Object {
+								$object = addm $_.Name $data.$($_.Name) $object
+							}
+							if($data.Error_Data) { $object.Error = $true }
+						}
+					}
+					if($err) {
+						$object = addm "Error_Invoke" $err $object
+						$object.Error = $true
+					}
+				}
 				
-				log "    Done retrieving data for: `"$_`"."
+				#log "Done retrieving data for: `"$comp`"." -L 1 -V 1
 		
 				$object
 			}
@@ -464,7 +505,7 @@ function Get-MachineInfo {
 		
 		log "Done retrieving data."
 			
-		$data
+		$objects | Sort Name
 	}
 	
 	function Output-Csv($data) {
@@ -476,20 +517,20 @@ function Get-MachineInfo {
 	
 	function Print-Data($data) {
 		log "Data:"
-		$printData = $data | Select Name,Error,Make,Model,Memory,OsBuild,OsRev,OsRelease,AssetTag,Serial,BIOS,TPM,@{Name="MAC";Expression={$_.NetAdapters.Mac}}
+		$printData = $data | Select Name,@{Name="InvokeError";Expression={$_.Error_Invoke}},@{Name="DataError";Expression={$_.Error_Data}},Make,Model,Memory,OsRelease,OsBuild,OsRev,AssetTag,Serial,BIOS,TPM,@{Name="MAC";Expression={$_.NetAdapters.Mac}}
 		Log-Object $printData -L 1
 	}
 	
 	function Do-Stuff {
 		$comps = Get-Comps
 		if($comps) {
-			$data = Get-Data $comps
+			$objects = Get-Data $comps
 			if($Csv) {
-				Output-Csv $data
+				Output-Csv $objects
 			}
-			Print-Data $data
+			Print-Data $objects
 			if($PassThru) {
-				$data
+				$objects
 			}
 		}
 	}

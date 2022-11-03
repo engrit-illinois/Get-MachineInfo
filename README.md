@@ -53,12 +53,7 @@ When specifying -PassThru, capture the info like so: `$info = Get-MachineInfo ..
 ### -ThrottleLimit [int]
 Optional integer.  
 The maximum number of computers which will be asynchronously polled simultaneously.  
-Default is `50`.  
-
-### -CIMTimeoutSec [int]
-Optional integer.  
-The number of seconds to wait for a CIM query to a target machine before giving up.  
-Default is `10`.  
+Default is `50`.   
 
 ### -Log \<string\>
 Optional string.  
@@ -96,7 +91,7 @@ Default is `[HH:mm:ss:ffff]⎵`.
 ### -Verbosity \<int\>
 Optional integer.  
 The level of verbosity to include in output logged to the console and logfile.  
-Currently not significantly implemented.  
+Specifying `1` outputs some additional logs per machine polled.  
 Default is `0`.  
 <br />
 <br />
