@@ -4,6 +4,9 @@ It optionally outputs a log and a CSV file of the data.
 
 This is an update of [Get-Model](https://github.com/engrit-illinois/Get-Model) primarily just to add the asynchronicity feature. This relies on the new `-Parallel` parameter of the `ForEach-Object` cmdlet, which makes this incompatible with PowerShell 5.1, a limitation not present in `Get-Model`. This new module also gathers quite a bit more information, including network adapter info.  
 
+# Requirements
+- Powershell 6+
+
 # Usage
 1. Download `Get-MachineInfo.psm1` to `$HOME\Documents\WindowsPowerShell\Modules\Get-MachineInfo\Get-MachineInfo.psm1`
 2. Run it using the examples and parameter documentation below.

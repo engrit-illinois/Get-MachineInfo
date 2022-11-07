@@ -457,9 +457,7 @@ function Get-MachineInfo {
 				$scriptBlock
 			}
 			
-			
 			function Do-Stuff {
-				$comp = $_
 				
 				#log "Retrieving data for: `"$comp`"..." -L 1 -V 1
 				
@@ -472,7 +470,7 @@ function Get-MachineInfo {
 				$scriptBlock = Get-ScriptBlock
 				
 				try {
-					$data = Invoke-Command -ComputerName $comp -ScriptBlock $scriptBlock
+					$data = Invoke-Command -ComputerName $comp -ScriptBlock $scriptBlock -ErrorAction "Stop"
 				}
 				catch {
 					$err = $_.Exception.Message
@@ -489,8 +487,8 @@ function Get-MachineInfo {
 							if($data.Error_Data) { $object.Error = $true }
 						}
 					}
-					if($err) {
-						$object = addm "Error_Invoke" $err $object
+					else {
+						$object.Error_Invoke = $err
 						$object.Error = $true
 					}
 				}
@@ -499,6 +497,8 @@ function Get-MachineInfo {
 		
 				$object
 			}
+			
+			$comp = $_
 			
 			Do-Stuff
 		}
@@ -516,8 +516,34 @@ function Get-MachineInfo {
 	}
 	
 	function Print-Data($data) {
-		log "Data:"
-		$printData = $data | Select Name,@{Name="InvokeError";Expression={$_.Error_Invoke}},@{Name="DataError";Expression={$_.Error_Data}},Make,Model,Memory,OsRelease,OsBuild,OsRev,AssetTag,Serial,BIOS,TPM,@{Name="MAC";Expression={$_.NetAdapters.Mac}}
+		# Concise string truncation: https://stackoverflow.com/a/30856340/994622
+		$errorTruncation = 26
+		
+		$printData = $data | Select `
+			Name,`
+			@{
+				Name = "InvokeError"
+				Expression = { "$($_.Error_Invoke)"[0..$errorTruncation] -join "" }
+			},`
+			@{
+				Name = "DataError"
+				Expression = { "$($_.Error_Data)"[0..$errorTruncation] -join "" }
+			},`
+			Make,`
+			Model,`
+			Memory,`
+			OsRelease,`
+			OsBuild,`
+			OsRev,`
+			AssetTag,`
+			Serial,`
+			BIOS,`
+			TPM,`
+			@{
+				Name = "MAC"
+				Expression = { $_.NetAdapters.Mac }
+			}
+		
 		Log-Object $printData -L 1
 	}
 	
