@@ -8,7 +8,7 @@ This is an update of [Get-Model](https://github.com/engrit-illinois/Get-Model) p
 - Powershell 6+
 
 # Usage
-1. Download `Get-MachineInfo.psm1` to `$HOME\Documents\WindowsPowerShell\Modules\Get-MachineInfo\Get-MachineInfo.psm1`
+1. Download `Get-MachineInfo.psm1` to the appropriate subdirectory of your PowerShell [modules directory](https://github.com/engrit-illinois/how-to-install-a-custom-powershell-module).
 2. Run it using the examples and parameter documentation below.
 
 # Examples
