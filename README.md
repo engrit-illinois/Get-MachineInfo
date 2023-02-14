@@ -1,5 +1,5 @@
 # Summary
-This script reports various useful hardware info from a list of remote computers by polling them asynchronously.  
+This script reports various useful OS and hardware info from a list of remote computers by polling them asynchronously.  
 It optionally outputs a log and a CSV file of the data.  
 
 This is an update of [Get-Model](https://github.com/engrit-illinois/Get-Model) primarily just to add the asynchronicity feature. This relies on the new `-Parallel` parameter of the `ForEach-Object` cmdlet, which makes this incompatible with PowerShell 5.1, a limitation not present in `Get-Model`. This new module also gathers quite a bit more information, including network adapter info.  

@@ -262,6 +262,11 @@ function Get-MachineInfo {
 							if(-not $err) {
 								if($result) {
 									$data = addm "OsBuild" $result.Version $data
+									$data = addm "OsInstalled" $result.InstallDate $data
+									$data = addm "NumUsers" $result.NumberOfUsers $data
+									$data = addm "SystemTime" $result.LocalDateTime $data
+									$data = addm "LastBoot" $result.LastBootUpTime $data
+									$data = addm "OsArch" $result.OSArchitecture $data
 								}
 							}
 							if($err) {
@@ -535,6 +540,11 @@ function Get-MachineInfo {
 			OsRelease,`
 			OsBuild,`
 			OsRev,`
+			OsArch, `
+			SystemTime, `
+			LastBoot, `
+			OsInstalled, `
+			NumUsers, `
 			AssetTag,`
 			Serial,`
 			BIOS,`
