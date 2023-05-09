@@ -515,6 +515,37 @@ function Get-MachineInfo {
 	
 	function Output-Csv($data) {
 		log "-Csv was specified. Outputting gathered data to `"$Csv`"..."
+		
+		$csvData = $data | Select `
+			Name, `
+			@{
+				Name = "InvokeError"
+				Expression = { $_.Error_Invoke }
+			}, `
+			@{
+				Name = "DataError"
+				Expression = { $_.Error_Data }
+			}, `
+			Make, `
+			Model, `
+			Memory, `
+			OsRelease, `
+			OsBuild, `
+			OsRev, `
+			OsArch, `
+			SystemTime, `
+			LastBoot, `
+			OsInstalled, `
+			NumUsers, `
+			AssetTag, `
+			Serial, `
+			BIOS, `
+			TPM, `
+			@{
+				Name = "MAC"
+				Expression = { $_.NetAdapters.Mac }
+			}
+		
 		$data | Export-Csv -Path $Csv -NoTypeInformation -Encoding Ascii
 		log "Done."
 		
@@ -529,44 +560,44 @@ function Get-MachineInfo {
 			@{
 				Name = "InvokeError"
 				Expression = { "$($_.Error_Invoke)"[0..$errorTruncation] -join "" }
-			},`
+			}, `
 			@{
 				Name = "DataError"
 				Expression = { "$($_.Error_Data)"[0..$errorTruncation] -join "" }
-			},`
-			Make,`
-			Model,`
-			Memory,`
-			OsRelease,`
-			OsBuild,`
-			OsRev,`
+			}, `
+			Make, `
+			Model, `
+			Memory, `
+			OsRelease, `
+			OsBuild, `
+			OsRev, `
 			OsArch, `
 			SystemTime, `
 			LastBoot, `
 			OsInstalled, `
 			NumUsers, `
-			AssetTag,`
-			Serial,`
-			BIOS,`
-			TPM,`
+			AssetTag, `
+			Serial, `
+			BIOS, `
+			TPM, `
 			@{
 				Name = "MAC"
 				Expression = { $_.NetAdapters.Mac }
 			}
 		
-		Log-Object $printData -L 1
+		$printData | Format-Table *
 	}
 	
 	function Do-Stuff {
 		$comps = Get-Comps
 		if($comps) {
-			$objects = Get-Data $comps
+			$data = Get-Data $comps
 			if($Csv) {
-				Output-Csv $objects
+				Output-Csv $data
 			}
-			Print-Data $objects
+			Print-Data $data
 			if($PassThru) {
-				$objects
+				$data
 			}
 		}
 	}
