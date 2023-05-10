@@ -165,6 +165,16 @@ function Get-MachineInfo {
 		}
 	}
 	
+	function addm($property, $value, $object, $adObject = $false) {
+		if($adObject) {
+			$object | Add-Member -NotePropertyName $property -NotePropertyValue $value -Force
+		}
+		else {
+			$object | Add-Member -NotePropertyName $property -NotePropertyValue $value
+		}
+		$object
+	}
+	
 	function Get-Comps {
 		log "Getting computer names from AD..."
 		$comps = @()
@@ -186,17 +196,11 @@ function Get-MachineInfo {
 	function Get-Data($comps) {
 		log "Retrieving data..."
 		
+		$f_addm = ${function:addm}.ToString()
+		
 		$objects = $comps | ForEach-Object -ThrottleLimit $ThrottleLimit -Parallel {
 			
-			function addm($property, $value, $object, $adObject = $false) {
-				if($adObject) {
-					$object | Add-Member -NotePropertyName $property -NotePropertyValue $value -Force
-				}
-				else {
-					$object | Add-Member -NotePropertyName $property -NotePropertyValue $value
-				}
-				$object
-			}
+			${function:addm} = $using:f_addm
 			
 			function Get-ScriptBlock {
 				
@@ -513,49 +517,34 @@ function Get-MachineInfo {
 		$objects | Sort Name
 	}
 	
-	function Output-Csv($data) {
+	# Not all objects will have all the properties we're interested in.
+	# Format-Table and Export-Csv will ignore properties that don't exist in the first object of an array.
+	# If the computer represented by the first object in $objects was unresponsive it will be missing most properties,
+	# and thus so will the output from these cmdlets.
+	# Here's a drop-in solution that avoids having to pre-populate every object with null values for every property:
+	# https://stackoverflow.com/a/44429084/994622
+	# https://stackoverflow.com/a/70484836/994622
+	function Unify-Properties {
+		$Names = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+		$InputCollected = @($Input)
+		$InputCollected.ForEach({ 
+			foreach ($Name in $_.psobject.Properties.Name) { $Null = $Names.Add($Name) }
+		})
+		$InputCollected | Select-Object @($Names)
+	}
+	
+	function Output-Csv($objects) {
 		log "-Csv was specified. Outputting gathered data to `"$Csv`"..."
-		
-		$csvData = $data | Select `
-			Name, `
-			@{
-				Name = "InvokeError"
-				Expression = { $_.Error_Invoke }
-			}, `
-			@{
-				Name = "DataError"
-				Expression = { $_.Error_Data }
-			}, `
-			Make, `
-			Model, `
-			Memory, `
-			OsRelease, `
-			OsBuild, `
-			OsRev, `
-			OsArch, `
-			SystemTime, `
-			LastBoot, `
-			OsInstalled, `
-			NumUsers, `
-			AssetTag, `
-			Serial, `
-			BIOS, `
-			TPM, `
-			@{
-				Name = "MAC"
-				Expression = { $_.NetAdapters.Mac }
-			}
-		
-		$data | Export-Csv -Path $Csv -NoTypeInformation -Encoding Ascii
+		$objects | Export-Csv -Path $Csv -NoTypeInformation -Encoding Ascii
 		log "Done."
 		
 	}
 	
-	function Print-Data($data) {
+	function Print-Data($objects) {
 		# Concise string truncation: https://stackoverflow.com/a/30856340/994622
 		$errorTruncation = 26
 		
-		$printData = $data | Select `
+		$printObjects = $objects | Select `
 			Name,`
 			@{
 				Name = "InvokeError"
@@ -585,19 +574,20 @@ function Get-MachineInfo {
 				Expression = { $_.NetAdapters.Mac }
 			}
 		
-		$printData | Format-Table *
+		$printObjects | Format-Table *
 	}
 	
 	function Do-Stuff {
 		$comps = Get-Comps
 		if($comps) {
-			$data = Get-Data $comps
+			$objects = Get-Data $comps
+			$objects = $objects | Unify-Properties
 			if($Csv) {
-				Output-Csv $data
+				Output-Csv $objects
 			}
-			Print-Data $data
+			Print-Data $objects
 			if($PassThru) {
-				$data
+				$objects
 			}
 		}
 	}
