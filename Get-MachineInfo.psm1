@@ -574,7 +574,7 @@ function Get-MachineInfo {
 				Expression = { $_.NetAdapters.Mac }
 			}
 		
-		$printObjects | Format-Table *
+		Write-Host ($printObjects | Format-Table * | Out-String)
 	}
 	
 	function Do-Stuff {
