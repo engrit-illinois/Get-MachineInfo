@@ -308,6 +308,29 @@ function Get-MachineInfo {
 						$data
 					}
 					
+					function Get-ProfileInfo($data) {
+						try {
+							$result = Get-Item -Path "c:\users\*" | Measure-Object | Select -ExpandProperty "Count"
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) { $err = "Unknown error" }
+						}
+						finally {
+							if(-not $err) {
+								if($result) {
+									$data = addm "NumProfiles" $result $data
+								}
+							}
+							if($err) {
+								$data = addm "Error_ProfileInfo" $err $data
+								$data.Error_Data = $true
+							}
+						}
+						
+						$data
+					}
+					
 					function Get-SystemEnclosureInfo($data) {
 						try {
 							$result = Get-CIMInstance -ClassName "Win32_SystemEnclosure" -ErrorAction $errAction
@@ -455,6 +478,7 @@ function Get-MachineInfo {
 					$data = Get-ComputerSystemInfo $data
 					$data = Get-OperatingSystemInfo $data
 					$data = Get-OperatingSystemInfo2 $data
+					$data = Get-ProfileInfo $data
 					$data = Get-SystemEnclosureInfo $data
 					$data = Get-BiosInfo $data
 					$data = Get-TpmInfo $data
@@ -565,6 +589,7 @@ function Get-MachineInfo {
 			LastBoot, `
 			OsInstalled, `
 			NumUsers, `
+			NumProfiles, `
 			AssetTag, `
 			Serial, `
 			BIOS, `
