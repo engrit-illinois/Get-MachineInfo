@@ -14,19 +14,29 @@ This is an update of [Get-Model](https://github.com/engrit-illinois/Get-Model) p
 # Examples
 
 ### Return info for single machine
-`Get-MachineInfo "espl-114-01"`
+```powershell
+Get-MachineInfo "espl-114-01"
+```
 
 ### Return info for multiple specific machines
-`Get-MachineInfo "espl-114-01","espl-114-02","tb-207-01"`
+```powershell
+Get-MachineInfo "espl-114-01","espl-114-02","tb-207-01"
+```
 
 ### Return info for multiple machines matching a wildcard query
-`Get-MachineInfo "espl-114-*"`
+```powershell
+Get-MachineInfo "espl-114-*"
+```
 
 ### Return info for multiple queries
-`Get-MachineInfo "espl-114-*","tb-207-01","tb-306-*"`
+```powershell
+Get-MachineInfo "espl-114-*","tb-207-01","tb-306-*"
+```
 
 ### Return info for all machines in a given OU
-`Get-MachineInfo -OUDN "OU=Instructional,OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu" -ComputerName "*"`
+```powershell
+Get-MachineInfo -OUDN "OU=Instructional,OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu" -ComputerName "*"
+```
 
 ### Capture the info silently and return just the MACs of the machines:
 ```powershell
