@@ -26,7 +26,7 @@ This is an update of [Get-Model](https://github.com/engrit-illinois/Get-Model) p
 - `Get-MachineInfo "espl-114-*","tb-207-01","tb-306-*"`
 
 ### Return info for all machines in a given OU
-- `Get-MachineInfo -OUDN "OU=Instructional,OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu" -ComputerName "*"
+- `Get-MachineInfo -OUDN "OU=Instructional,OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu" -ComputerName "*"`
 
 ### Capture the info silently and return just the MACs of the machines:
 ```powershell
