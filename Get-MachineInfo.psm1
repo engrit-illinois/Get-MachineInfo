@@ -284,7 +284,7 @@ function Get-MachineInfo {
 					
 					function Get-OperatingSystemInfo2($data) {
 						try {
-							$result = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+							$result = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
 						}
 						catch {
 							$err = $_.Exception.Message
@@ -301,6 +301,29 @@ function Get-MachineInfo {
 							}
 							if($err) {
 								$data = addm "Error_Os2Info" $err $data
+								$data.Error_Data = $true
+							}
+						}
+						
+						$data
+					}
+					
+					function Get-OfficeInfo($data) {
+						try {
+							$result = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration' -ErrorAction "SilentlyContinue"
+						}
+						catch {
+							$err = $_.Exception.Message
+							if(-not $err) { $err = "Unknown error" }
+						}
+						finally {
+							if(-not $err) {
+								if($result) {
+									$data = addm "OfficeVer" $result.ClientVersionToReport $data
+								}
+							}
+							if($err) {
+								$data = addm "Error_OfficeInfo" $err $data
 								$data.Error_Data = $true
 							}
 						}
@@ -478,6 +501,7 @@ function Get-MachineInfo {
 					$data = Get-ComputerSystemInfo $data
 					$data = Get-OperatingSystemInfo $data
 					$data = Get-OperatingSystemInfo2 $data
+					$data = Get-OfficeInfo $data
 					$data = Get-ProfileInfo $data
 					$data = Get-SystemEnclosureInfo $data
 					$data = Get-BiosInfo $data
@@ -588,6 +612,7 @@ function Get-MachineInfo {
 			SystemTime, `
 			LastBoot, `
 			OsInstalled, `
+			OfficeVer, `
 			#NumUsers, `
 			NumProfiles, `
 			AssetTag, `
