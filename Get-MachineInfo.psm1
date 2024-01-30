@@ -453,25 +453,28 @@ function Get-MachineInfo {
 							if(-not $err) {
 								if($adapterResults) {
 									if($configResults) {
-										$physicalAdapterResults = $adapterResults | Where { $_.PhysicalAdapter } | Where {$_.Name -notlike "*Cisco AnyConnect*" }
-										$adapterData = $physicalAdapterResults | ForEach-Object {
+										$physicalAdapterResults = $adapterResults | Where { $_.PhysicalAdapter }
+										$filteredAdapterResults = $physicalAdapterResults | Where {$_.Name -notlike "*Cisco AnyConnect*" } | Where {$_.Name -notlike "*bluetooth*"}
+										$adapterData = $filteredAdapterResults | ForEach-Object {
 											$adapterResult = $_
 											$configResult = $configResults | Where { $_.SettingID -like $adapterResult.GUID }
 											if($configResult) {
 												$configResultCount = count $configResult
 												if($configResultCount -eq 1) {
-													$ips = $configResult | Select -ExpandProperty "IPAddress"
-													$ipv4 = Get-Ipv4 $ips
-													[PSCustomObject]@{
-														"Mac" = $configResult | Select -ExpandProperty "MACAddress"
-														"Ips" = $ips
-														"Ipv4" = $ipv4
-														"DnsHostname" = $configResult | Select -ExpandProperty "DNSHostName"
-														"Name" = $configResult | Select -ExpandProperty "Description"
-														"Gateway" = $configResult | Select -ExpandProperty "DefaultIPGateway"
-														"DhcpEnabled" = $configResult | Select -ExpandProperty "DHCPEnabled"
-														"DhcpServer" = $configResult | Select -ExpandProperty "DHCPServer"
-														"DhcpLeaseObtained" = $configResult | Select -ExpandProperty "DHCPLeaseObtained"
+													if($configResult.MACAddress) {
+														$ips = $configResult | Select -ExpandProperty "IPAddress"
+														$ipv4 = Get-Ipv4 $ips
+														[PSCustomObject]@{
+															"Mac" = $configResult | Select -ExpandProperty "MACAddress"
+															"Ips" = $ips
+															"Ipv4" = $ipv4
+															"DnsHostname" = $configResult | Select -ExpandProperty "DNSHostName"
+															"Name" = $configResult | Select -ExpandProperty "Description"
+															"Gateway" = $configResult | Select -ExpandProperty "DefaultIPGateway"
+															"DhcpEnabled" = $configResult | Select -ExpandProperty "DHCPEnabled"
+															"DhcpServer" = $configResult | Select -ExpandProperty "DHCPServer"
+															"DhcpLeaseObtained" = $configResult | Select -ExpandProperty "DHCPLeaseObtained"
+														}
 													}
 												}
 												elseif($configResultCount -lt 1) { $err = "No configuration found for one or more physical adapters, or configuration info is invalid!" }
@@ -622,6 +625,10 @@ function Get-MachineInfo {
 			@{
 				Name = "MAC"
 				Expression = { $_.NetAdapters.Mac }
+			},
+			@{
+				Name = "IPv4"
+				Expression = { $_.NetAdapters.Ipv4 }
 			}
 		
 		Write-Host ($printObjects | Format-Table * | Out-String)
