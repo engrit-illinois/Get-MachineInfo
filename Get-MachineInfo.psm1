@@ -271,6 +271,12 @@ function Get-MachineInfo {
 									$data = addm "SystemTime" $result.LocalDateTime $data
 									$data = addm "LastBoot" $result.LastBootUpTime $data
 									$data = addm "OsArch" $result.OSArchitecture $data
+									$data = addm "OsCaption" $result.Caption $data
+									
+									$captionParts = $result.Caption -split " "
+									$captionPartsCount = count $captionParts
+									$edition = $captionParts[$captionPartsCount - 1]
+									$data = addm "OsEdition" $edition $data
 								}
 							}
 							if($err) {
@@ -611,6 +617,7 @@ function Get-MachineInfo {
 			OsRelease, `
 			OsBuild, `
 			OsRev, `
+			OsEdition, `
 			OsArch, `
 			SystemTime, `
 			LastBoot, `
