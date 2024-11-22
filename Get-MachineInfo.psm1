@@ -5,6 +5,7 @@ function Get-MachineInfo {
 		[Parameter(Mandatory=$true,Position=0)]
 		[string[]]$ComputerNames,
 		
+		[Alias("SearchBase")]
 		[string]$OUDN = "OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu",
 		
 		[switch]$PassThru,
