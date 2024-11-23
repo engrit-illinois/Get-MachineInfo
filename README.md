@@ -68,14 +68,14 @@ Optional integer.
 The maximum number of computers which will be asynchronously polled simultaneously.  
 Default is `50`.   
 
-### -Log \<string\>
+### -Log [string]
 Optional string.  
 The full path of a text file to log to.  
 If omitted, no log will be created.  
 If `:TS:` is given as part of the string, it will be replaced by a timestamp of when the script was started, with a format specified by `-LogFileTimestampFormat`.  
 Specify `:ENGRIT:` to use a default path (i.e. `c:\engrit\logs\<Module-Name>_<timestamp>.log`).  
 
-### -Csv \<string\>
+### -Csv [string]
 Optional string.  
 The full path of a CSV file to output resulting data to.  
 If omitted, no CSV will be created.  
@@ -86,22 +86,22 @@ Specify `:ENGRIT:` to use a default path (i.e. `c:\engrit\logs\<Module-Name>_<ti
 Optional switch.  
 If specified, progress output is not logged to the console.  
 
-### -Indent \<string\>
+### -Indent [string]
 Optional string.  
 The string used as an indent, when indenting log entries.  
 Default is four space characters.  
 
-### -LogFileTimestampFormat \<string\>
+### -LogFileTimestampFormat [string]
 Optional string.  
 The format of the timestamp used in filenames which include `:TS:`.  
 Default is `yyyy-MM-dd_HH-mm-ss`.  
 
-### -LogLineTimestampFormat \<string\>
+### -LogLineTimestampFormat [string]
 Optional string.  
 The format of the timestamp which prepends each log line.  
 Default is `[HH:mm:ss:ffff]⎵`.  
 
-### -Verbosity \<int\>
+### -Verbosity [int]
 Optional integer.  
 The level of verbosity to include in output logged to the console and logfile.  
 Specifying `1` outputs some additional logs per machine polled.  
