@@ -52,10 +52,9 @@ The list of computer names and/or computer name query strings to poll.
 Use an asterisk (`*`) as a wildcard.  
 The parameter name may be omitted if the value is given as the first or only parameter.   
 
-### -OUDN [string]
+### -SearchBase [string]
 Optional string.  
 The distinguished name of the OU to limit the computername search to.  
-Default is `"OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu"`.  
 
 ### -PassThru
 Optional switch.  

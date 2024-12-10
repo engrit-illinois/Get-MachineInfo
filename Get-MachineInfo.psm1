@@ -5,8 +5,8 @@ function Get-MachineInfo {
 		[Parameter(Mandatory=$true,Position=0)]
 		[string[]]$ComputerNames,
 		
-		[Alias("SearchBase")]
-		[string]$OUDN = "OU=Desktops,OU=Engineering,OU=Urbana,DC=ad,DC=uillinois,DC=edu",
+		[Alias("OUDN")]
+		[string]$SearchBase,
 		
 		[switch]$PassThru,
 		
@@ -181,7 +181,11 @@ function Get-MachineInfo {
 		$comps = @()
 		$ComputerNames | ForEach-Object {
 			$query = $_
-			$results = Get-ADComputer -Filter "name -like '$query'" -SearchBase $OUDN | Select -ExpandProperty name
+			$params = @{
+				Filter = "name -like '$query'"
+			}
+			if($SearchBase) { $params.SearchBase = $SearchBase }
+			$results = Get-ADComputer @params | Select -ExpandProperty "Name"
 			$comps += @($results)
 		}
 		
