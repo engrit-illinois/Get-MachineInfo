@@ -636,11 +636,11 @@ function Get-MachineInfo {
 			TPM, `
 			@{
 				Name = "MAC"
-				Expression = { $_.NetAdapters.Mac }
+				Expression = { $_.NetAdapters.Mac | Sort }
 			},
 			@{
 				Name = "IPv4"
-				Expression = { $_.NetAdapters.Ipv4 }
+				Expression = { $_.NetAdapters.Ipv4| Sort }
 			}
 		
 		Write-Host ($printObjects | Format-Table * | Out-String)
