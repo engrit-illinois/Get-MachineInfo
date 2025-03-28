@@ -83,7 +83,14 @@ Specify `:ENGRIT:` to use a default path (i.e. `c:\engrit\logs\<Module-Name>_<ti
 
 ### -NoConsoleOutput
 Optional switch.  
+If specified, nothing is output to the console.  
+Has no effect on `-PassThru`.  
+
+### -NoProgressOutput
+Optional switch.  
 If specified, progress output is not logged to the console.  
+The resulting table is still output to the console.  
+Has no effect on `-PassThru`.  
 
 ### -Indent [string]
 Optional string.  

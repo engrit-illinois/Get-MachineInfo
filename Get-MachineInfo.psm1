@@ -21,8 +21,11 @@ function Get-MachineInfo {
 		[string]$Log,
 
 		# This logging is designed to output to the console (Write-Host) by default
-		# This switch will silence the console output
+		# This switch will silence all console output
 		[switch]$NoConsoleOutput,
+		
+		# This switch will silence all console output except for the final table of results
+		[switch]$NoProgressOutput,
 		
 		[string]$Indent = "    ",
 		[string]$LogFileTimestampFormat = "yyyy-MM-dd_HH-mm-ss",
@@ -123,7 +126,7 @@ function Get-MachineInfo {
 			if(-not $NoConsole) {
 
 				# Check if we're allowing console output at all
-				if(-not $NoConsoleOutput) {
+				if((-not $NoConsoleOutput) -and (-not $NoProgressOutput)) {
 					
 					Write-Host $Msg @whParams
 				}
@@ -438,12 +441,25 @@ function Get-MachineInfo {
 					function Get-NetworkAdapterInfo($data) {
 						
 						function Get-Ipv4($ips) {
-							$ipv4 = "unknown"
+							# https://www.oreilly.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html
 							$ipv4Regex = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
 							@($ips) | ForEach-Object {
-								if($_ -match $ipv4Regex) { $ipv4 = $_ }
+								if($_ -match $ipv4Regex) { $_ }
+								# Can't figure out why this else is necessary.
+								# Without it, a seemingly blank PSCustomObject is returned...?
+								else { $null }
 							}
-							$ipv4
+						}
+						
+						function Get-Ipv6($ips) {
+							# https://stackoverflow.com/a/17871737/994622
+							$ipv6Regex = '(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))'
+							@($ips) | ForEach-Object {
+								if($_ -match $ipv6Regex) { $_ }
+								# Can't figure out why this else is necessary.
+								# Without it, a seemingly blank PSCustomObject is returned...?
+								else { $null }
+							}
 						}
 						
 						# get-ciminstance win32_networkadapter | select name,macaddress,guid,status,networkaddresses,adaptertype,netconnectionid,netconnectionstatus,netenabled,physicaladapter | ft
@@ -475,10 +491,12 @@ function Get-MachineInfo {
 													if($configResult.MACAddress) {
 														$ips = $configResult | Select -ExpandProperty "IPAddress"
 														$ipv4 = Get-Ipv4 $ips
+														$ipv6 = Get-Ipv6 $ips
 														[PSCustomObject]@{
 															"Mac" = $configResult | Select -ExpandProperty "MACAddress"
 															"Ips" = $ips
 															"Ipv4" = $ipv4
+															"Ipv6" = $ipv6
 															"DnsHostname" = $configResult | Select -ExpandProperty "DNSHostName"
 															"Name" = $configResult | Select -ExpandProperty "Description"
 															"Gateway" = $configResult | Select -ExpandProperty "DefaultIPGateway"
@@ -603,47 +621,53 @@ function Get-MachineInfo {
 	}
 	
 	function Print-Data($objects) {
-		# Concise string truncation: https://stackoverflow.com/a/30856340/994622
-		$errorTruncation = 26
-		
-		$printObjects = $objects | Select `
-			Name,`
-			@{
-				Name = "InvokeError"
-				Expression = { "$($_.Error_Invoke)"[0..$errorTruncation] -join "" }
-			}, `
-			@{
-				Name = "DataError"
-				Expression = { "$($_.Error_Data)"[0..$errorTruncation] -join "" }
-			}, `
-			Make, `
-			Model, `
-			Memory, `
-			OsRelease, `
-			OsBuild, `
-			OsRev, `
-			OsEdition, `
-			OsArch, `
-			SystemTime, `
-			LastBoot, `
-			OsInstalled, `
-			OfficeVer, `
-			#NumUsers, `
-			NumProfiles, `
-			AssetTag, `
-			Serial, `
-			BIOS, `
-			TPM, `
-			@{
-				Name = "MAC"
-				Expression = { $_.NetAdapters.Mac | Sort }
-			},
-			@{
-				Name = "IPv4"
-				Expression = { $_.NetAdapters.Ipv4| Sort }
-			}
-		
-		Write-Host ($printObjects | Format-Table * | Out-String)
+		if(-not $NoConsoleOutput) {
+			# Concise string truncation: https://stackoverflow.com/a/30856340/994622
+			$errorTruncation = 26
+			
+			$printObjects = $objects | Select `
+				Name,`
+				@{
+					Name = "InvokeError"
+					Expression = { "$($_.Error_Invoke)"[0..$errorTruncation] -join "" }
+				}, `
+				@{
+					Name = "DataError"
+					Expression = { "$($_.Error_Data)"[0..$errorTruncation] -join "" }
+				}, `
+				Make, `
+				Model, `
+				Memory, `
+				OsRelease, `
+				OsBuild, `
+				OsRev, `
+				OsEdition, `
+				OsArch, `
+				SystemTime, `
+				LastBoot, `
+				OsInstalled, `
+				OfficeVer, `
+				#NumUsers, `
+				NumProfiles, `
+				AssetTag, `
+				Serial, `
+				BIOS, `
+				TPM, `
+				@{
+					Name = "MAC"
+					Expression = { $_.NetAdapters.Mac | Sort }
+				},
+				@{
+					Name = "IPv4"
+					Expression = { $_.NetAdapters.Ipv4 | Sort }
+				},
+				@{
+					Name = "IPv6"
+					Expression = { $_.NetAdapters.Ipv6 | Sort }
+				}
+			
+			Write-Host ($printObjects | Format-Table * | Out-String)
+		}
 	}
 	
 	function Do-Stuff {
